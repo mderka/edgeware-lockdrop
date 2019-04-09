@@ -180,14 +180,14 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
   for (var key in locks) {
     balances.push([
       key,
-      toBN(locks[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH),
+      web3.utils.fromWei(toBN(locks[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
     ]);
   }
 
   for (var key in signals) {
     vesting.push([
       key,
-      toBN(signals[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH),
+      toBN(signals[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(),
       68400 * 365 // 1 year FIXME: see what vesting in substrate does
     ]);
   }
