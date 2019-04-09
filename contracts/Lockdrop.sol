@@ -38,8 +38,8 @@ contract Lockdrop {
     uint256 public LOCK_START_TIME;
     uint256 public LOCK_END_TIME;
     // ETH locking events
-    event Locked(address indexed owner, uint256 eth, Lock lockAddr, Term term, bytes edgewareKey, bool isValidator);
-    event Signaled(address indexed contractAddr, bytes edgewareKey);
+    event Locked(address indexed owner, uint256 eth, Lock lockAddr, Term term, bytes edgewareKey, bool isValidator, uint time);
+    event Signaled(address indexed contractAddr, bytes edgewareKey, uint time);
     
     constructor(uint startTime) public {
         LOCK_START_TIME = startTime;
@@ -65,15 +65,7 @@ contract Lockdrop {
         Lock lockAddr = (new Lock).value(eth)(owner, unlockTime);
         // ensure lock contract has all ETH, or fail
         assert(address(lockAddr).balance == msg.value);
-        emit Locked(owner, eth, lockAddr, term, edgewareKey, isValidator);
-    }
-    
-    function unlockTimeForTerm(Term term) internal view returns (uint256) {
-        if (term == Term.ThreeMo) return LOCK_START_TIME + LOCK_DROP_PERIOD + 92 days;
-        if (term == Term.SixMo) return LOCK_START_TIME + LOCK_DROP_PERIOD + 183 days;
-        if (term == Term.TwelveMo) return LOCK_START_TIME + LOCK_DROP_PERIOD + 365 days;
-        
-        revert();
+        emit Locked(owner, eth, lockAddr, term, edgewareKey, isValidator, now);
     }
 
     /**
@@ -88,7 +80,15 @@ contract Lockdrop {
         didNotEnd
         didCreate(contractAddr, msg.sender, nonce)
     {
-        emit Signaled(contractAddr, edgewareKey);
+        emit Signaled(contractAddr, edgewareKey, now);
+    }
+
+    function unlockTimeForTerm(Term term) internal view returns (uint256) {
+        if (term == Term.ThreeMo) return LOCK_START_TIME + LOCK_DROP_PERIOD + 92 days;
+        if (term == Term.SixMo) return LOCK_START_TIME + LOCK_DROP_PERIOD + 183 days;
+        if (term == Term.TwelveMo) return LOCK_START_TIME + LOCK_DROP_PERIOD + 365 days;
+        
+        revert();
     }
 
     /**
