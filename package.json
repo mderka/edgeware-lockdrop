@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "bluebird": "^3.5.3",
+    "bs58": "^4.0.1",
     "dotenv": "^6.2.0",
     "ethereumjs-tx": "^1.3.7",
     "keccak": "^2.0.0",

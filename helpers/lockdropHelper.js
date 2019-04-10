@@ -1,5 +1,6 @@
 const Promise = require('bluebird');
 const { toBN } = require('web3').utils;
+const bs58 = require('bs58');
 
 function getEffectiveValue(ethAmount, term) {
   if (term == '0') {
@@ -163,7 +164,7 @@ const selectEdgewareValidators = (validatingLocks, totalAllocation, totalETH, nu
   // Add the calculated edgeware balances with the respective key to a collection
   for (var key in validatingLocks) {
       sortable.push([
-        key,
+        `0x${key.slice(0, -4).slice(4)}`,
         toBN(validatingLocks[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH)
       ]);
   }
@@ -179,14 +180,14 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
   let vesting = [];
   for (var key in locks) {
     balances.push([
-      key,
+      bs58.encode(new Buffer(key.slice(2), 'hex')),
       web3.utils.fromWei(toBN(locks[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
     ]);
   }
 
   for (var key in signals) {
     vesting.push([
-      key,
+      bs58.encode(new Buffer(key.slice(2), 'hex')),
       toBN(signals[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(),
       68400 * 365 // 1 year FIXME: see what vesting in substrate does
     ]);
