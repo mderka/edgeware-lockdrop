@@ -92,7 +92,7 @@ contract('Lockdrop', (accounts) => {
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
     let { validatingLocks, locks, totalETHLocked } = allocation;
     // console.log(validatingLocks, locks, web3.utils.fromWei(totalETHLocked.toString(), 'ether'));
-    const signalAllocation = await ldHelpers.getEffectiveSignals(lockdrop);
+    const signalAllocation = await ldHelpers.calculateEffectiveSignals(lockdrop);
     let { signals, totalETHSignaled } = signalAllocation;
     // console.log(signals, web3.utils.fromWei(totalETHSignaled.toString(), 'ether'));
     const totalETH = totalETHLocked.add(totalETHSignaled);

@@ -2,19 +2,48 @@ const Promise = require('bluebird');
 const { toBN } = require('web3').utils;
 const bs58 = require('bs58');
 
-function getEffectiveValue(ethAmount, term) {
+function getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart) {
+  const SECONDS_IN_HOUR = 3600;
+  const HOURS_IN_DAY = 24;
+  const DAYS_IN_MONTH = 31;
+  const SECONDS_IN_MONTH = SECONDS_IN_HOUR * HOURS_IN_DAY * DAYS_IN_MONTH;
+
+  // catch non-lock calls
+  if (!lockTime || !lockStart) {
+    return toBN(0);
+  }
+
+  // calculate the additive bonus for the period the lock occurred
+  if (lockTime < lockStart + SECONDS_IN_MONTH) {
+    return toBN(40);
+  } else if (lockTime < lockStart + (SECONDS_IN_MONTH * 2)) {
+    return toBN(30);
+  } else if (lockTime < lockStart + (SECONDS_IN_MONTH * 3)) {
+    return toBN(0);
+  } else {
+    return toBN(0);
+  }
+}
+
+function getEffectiveValue(ethAmount, term, lockTime, lockStart) {
   if (term == '0') {
+    // get lock period additive bonus
+    const additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart)
     // three month term yields no bonus
-    return toBN(ethAmount);
+    return toBN(ethAmount).mul(toBN(100).add(additiveBonus)).div(toBN(100));
   } else if (term == '1') {
+    // get lock period additive bonus
+    const additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart)
     // six month term yields 10% bonus
-    return toBN(ethAmount).mul(toBN(110)).div(toBN(100));
+    return toBN(ethAmount).mul(toBN(110).add(additiveBonus)).div(toBN(100));
   } else if (term == '2') {
+    // get lock period additive bonus
+    const additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart)
     // twelve month term yields 40% bonus
-    return toBN(ethAmount).mul(toBN(140)).div(toBN(100));
+    return toBN(ethAmount).mul(toBN(140).add(additiveBonus)).div(toBN(100));
   } else if (term == 'signaling') {
-    // 40% deduction
-    return toBN(ethAmount).mul(60).div(toBN(100));
+    // 80% deduction
+    return toBN(ethAmount).mul(toBN(20)).div(toBN(100));
   } else {
     // invalid term
     return toBN(0);
@@ -66,9 +95,11 @@ const calculateEffectiveLocks = async (lockdropContract) => {
     toBlock: 'latest',
   });
 
+  const lockdropStartTime = (await lockdropContract.LOCK_START_TIME()).toNumber();
+
   lockEvents.forEach((event) => {
     const data = event.returnValues;
-    let value = getEffectiveValue(data.eth, data.term);
+    let value = getEffectiveValue(data.eth, data.term, data.time, lockdropStartTime);
     totalETHLocked = totalETHLocked.add(value);
 
     // Add all validators to a separate collection to do validator election over later
@@ -77,7 +108,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
         validatingLocks[data.edgewareKey] = {
           lockAmt: toBN(data.eth).add(toBN(validatingLocks[data.edgewareKey].lockAmt)).toString(),
           effectiveValue: toBN(validatingLocks[data.edgewareKey].effectiveValue).add(value).toString(),
-          lockAddrs: [ data.lockAddr, ...validatingLocks[data.edgewareKey].lockAddrs],
+          lockAddrs: [data.lockAddr, ...validatingLocks[data.edgewareKey].lockAddrs],
         };
       } else {
         validatingLocks[data.edgewareKey] = {
@@ -94,7 +125,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
       locks[data.edgewareKey] = {
         lockAmt: toBN(data.eth).add(toBN(locks[data.edgewareKey].lockAmt)).toString(),
         effectiveValue: toBN(locks[data.edgewareKey].effectiveValue).add(value).toString(),
-        lockAddrs: [ data.lockAddr, ...locks[data.edgewareKey].lockAddrs],
+        lockAddrs: [data.lockAddr, ...locks[data.edgewareKey].lockAddrs],
       };
     } else {
       locks[data.edgewareKey] = {
@@ -108,7 +139,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
   return { validatingLocks, locks, totalETHLocked };
 };
 
-const getEffectiveSignals = async (lockdropContract, blockNumber=null) => {
+const calculateEffectiveSignals = async (lockdropContract, blockNumber=null) => {
   let totalETHSignaled = toBN(0);
   let signals = {};
 
@@ -134,12 +165,20 @@ const getEffectiveSignals = async (lockdropContract, blockNumber=null) => {
     if (data.edgewareKey in signals) {
       signals[data.edgewareKey] = {
         signalAmt: toBN(data.eth).add(toBN(signals[data.edgewareKey].signalAmt)).toString(),
-        signalEffectiveValue: toBN(signals[data.edgewareKey].signalEffectiveValue).add(value).toString(),
+        delayedEffectiveValue: toBN(signals[data.edgewareKey]
+                                .delayedEffectiveValue)
+                                .add(value.mul(toBN(75)).div(toBN(100)))
+                                .toString(),
+        immediateEffectiveValue: toBN(signals[data.edgewareKey]
+                                  .immediateEffectiveValue)
+                                  .add(value.mul(toBN(25)).div(toBN(100)))
+                                  .toString(),
       };
     } else {
       signals[data.edgewareKey] = {
         signalAmt: toBN(data.eth).toString(),
-        effectiveValue: value.toString(),
+        delayedEffectiveValue: value.mul(toBN(75)).div(toBN(100)).toString(),
+        immediateEffectiveValue: value.mul(toBN(25)).div(toBN(100)).toString(),
       };
     }
   });
@@ -159,7 +198,7 @@ const getLockStorage = async (lockAddress) => {
   });
 };
 
-const selectEdgewareValidators = (validatingLocks, totalAllocation, totalETH, num_of_validators) => {
+const selectEdgewareValidators = (validatingLocks, totalAllocation, totalETH, numOfValidators) => {
   const sortable = [];
   // Add the calculated edgeware balances with the respective key to a collection
   for (var key in validatingLocks) {
@@ -169,28 +208,53 @@ const selectEdgewareValidators = (validatingLocks, totalAllocation, totalETH, nu
       ]);
   }
 
-  // Sort and take the top "num_of_validators" from the collection
+  // Sort and take the top "numOfValidators" from the collection
   return sortable
     .sort((a,b) => (a[1] > b[1]) ? 1 : ((b[1] > a[1]) ? -1 : 0))
-    .slice(0, num_of_validators);
+    .slice(0, numOfValidators);
 };
 
 const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) => {
   let balances = [];
   let vesting = [];
   for (var key in locks) {
-    balances.push([
-      bs58.encode(new Buffer(key.slice(2), 'hex')),
-      web3.utils.fromWei(toBN(locks[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
-    ]);
+    if (key in signals) {
+      // if key also signaled ETH, add immediate effective signal value to the locked value
+      const summation = toBN(locks[key].effectiveValue).add(signals[key].immediateEffectiveValue);
+      balances.push([
+        bs58.encode(new Buffer(key.slice(2), 'hex')),
+        web3.utils.fromWei(summation.mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+      ]);
+    } else {
+      balances.push([
+        bs58.encode(new Buffer(key.slice(2), 'hex')),
+        web3.utils.fromWei(toBN(locks[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+      ]);
+    }
   }
 
   for (var key in signals) {
-    vesting.push([
-      bs58.encode(new Buffer(key.slice(2), 'hex')),
-      toBN(signals[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(),
-      68400 * 365 // 1 year FIXME: see what vesting in substrate does
-    ]);
+    if (key in locks) {
+      // if key locked, then we only need to create a vesting record as we created the balances record above
+      vesting.push([
+        bs58.encode(new Buffer(key.slice(2), 'hex')),
+        toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(),
+        68400 * 365 // 1 year FIXME: see what vesting in substrate does
+      ]);
+    } else {
+      // if key did not lock, then we need to create balances and vesting records
+      // create balances record
+      balances.push([
+        bs58.encode(new Buffer(key.slice(2), 'hex')),
+        web3.utils.fromWei(toBN(locks[key].immediateEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+      ]);
+      // create vesting record
+      vesting.push([
+        bs58.encode(new Buffer(key.slice(2), 'hex')),
+        toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(),
+        68400 * 365 // 1 year FIXME: see what vesting in substrate does
+      ]);
+    }
   }
 
   return { balances: balances, vesting: vesting };
@@ -202,7 +266,7 @@ module.exports = {
   getSignals,
   getTotalLockedBalance,
   calculateEffectiveLocks,
-  getEffectiveSignals,
+  calculateEffectiveSignals,
   getLockStorage,
   selectEdgewareValidators,
   getEdgewareBalanceObjects,

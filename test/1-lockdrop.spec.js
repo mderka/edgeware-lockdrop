@@ -25,7 +25,7 @@ contract('Lockdrop', (accounts) => {
     let time = await utility.getCurrentTimestamp(web3);
     let LOCK_DROP_PERIOD = (await lockdrop.LOCK_DROP_PERIOD()).toNumber();
     let LOCK_START_TIME = (await lockdrop.LOCK_START_TIME()).toNumber();
-    assert.equal(LOCK_DROP_PERIOD, SECONDS_IN_DAY * 14);
+    assert.equal(LOCK_DROP_PERIOD, SECONDS_IN_DAY * 93);
     assert.ok(LOCK_START_TIME <= time && time <= LOCK_START_TIME + 1000);
   });
 
@@ -143,11 +143,12 @@ contract('Lockdrop', (accounts) => {
 
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
-    let { validatingLocks, unvalidatingLocks } = allocation;
+    let { validatingLocks, locks, totalETHLocked } = allocation;
 
-    // for (key in validatingLocks) {
-    //   assert.equal(validatingLocks[key].edgewareBalance, toBN(totalAllocation).div(toBN(accounts.length)).toString());
-    // }
+    console.log(locks);
+    for (key in locks) {
+      assert.equal(locks[key].effectiveValue, toBN(totalAllocation).div(toBN(accounts.length)).toString());
+    }
   });
 
   it('should generate the allocation for a substrate genesis spec with SIX_MONTHS term', async function () {
@@ -160,11 +161,12 @@ contract('Lockdrop', (accounts) => {
 
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
-    let { validatingLocks, unvalidatingLocks } = allocation;
+    let { validatingLocks, locks, totalETHLocked } = allocation;
 
-    // for (key in validatingLocks) {
-    //   assert.equal(validatingLocks[key].edgewareBalance, toBN(totalAllocation).div(toBN(accounts.length)).toString());
-    // }
+    console.log(locks);
+    for (key in locks) {
+      assert.equal(locks[key].effectiveValue, toBN(totalAllocation).div(toBN(accounts.length)).toString());
+    }
   });
 
   it('should generate the allocation for a substrate genesis spec with TWELVE_MONTHS term', async function () {
@@ -179,9 +181,10 @@ contract('Lockdrop', (accounts) => {
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
     let { validatingLocks, locks, totalETHLocked } = allocation;
 
-    // for (key in validatingLocks) {
-    //   assert.equal(validatingLocks[key].edgewareBalance, toBN(totalAllocation).div(toBN(accounts.length)).toString());
-    // }
+    console.log(locks);
+    for (key in locks) {
+      assert.equal(locks[key].effectiveValue, toBN(totalAllocation).div(toBN(accounts.length)).toString());
+    }
   });
 
   it('should aggregate the balances for all non validators and separate for validators', async function () {
@@ -215,10 +218,10 @@ contract('Lockdrop', (accounts) => {
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
     let { validatingLocks, locks, totalETHLocked } = allocation;
-    const signalAllocation = await ldHelpers.getEffectiveSignals(lockdrop);
+    const signalAllocation = await ldHelpers.calculateEffectiveSignals(lockdrop);
     let { signals, totalETHSignaled } = signalAllocation;
     const totalETH = totalETHLocked.add(totalETHSignaled);
-    let json = await ldHelpers.getEdgewareBalanceObjects(validatingLocks, locks, totalAllocation, totalETH);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
     let validators = ldHelpers.selectEdgewareValidators(validatingLocks, totalAllocation, totalETH, 10);
     assert(validators.length < 10);
     assert.ok(json.hasOwnProperty('balances'));
