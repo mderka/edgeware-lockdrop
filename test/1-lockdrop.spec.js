@@ -144,11 +144,15 @@ contract('Lockdrop', (accounts) => {
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
     let { validatingLocks, locks, totalETHLocked } = allocation;
+    const signalAllocation = await ldHelpers.calculateEffectiveSignals(lockdrop);
+    let { signals, totalETHSignaled } = signalAllocation;
+    const totalETH = totalETHLocked.add(totalETHSignaled);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
 
-    console.log(locks);
-    for (key in locks) {
-      assert.equal(locks[key].effectiveValue, toBN(totalAllocation).div(toBN(accounts.length)).toString());
-    }
+    const bal = web3.utils.fromWei(toBN(totalAllocation).div(toBN(accounts.length)).toString(), 'ether');
+    json.balances.forEach(elt => {
+      assert.equal(elt[1], bal);
+    });
   });
 
   it('should generate the allocation for a substrate genesis spec with SIX_MONTHS term', async function () {
@@ -162,11 +166,15 @@ contract('Lockdrop', (accounts) => {
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
     let { validatingLocks, locks, totalETHLocked } = allocation;
+    const signalAllocation = await ldHelpers.calculateEffectiveSignals(lockdrop);
+    let { signals, totalETHSignaled } = signalAllocation;
+    const totalETH = totalETHLocked.add(totalETHSignaled);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
 
-    console.log(locks);
-    for (key in locks) {
-      assert.equal(locks[key].effectiveValue, toBN(totalAllocation).div(toBN(accounts.length)).toString());
-    }
+    const bal = web3.utils.fromWei(toBN(totalAllocation).div(toBN(accounts.length)).toString(), 'ether');
+    json.balances.forEach(elt => {
+      assert.equal(elt[1], bal);
+    });
   });
 
   it('should generate the allocation for a substrate genesis spec with TWELVE_MONTHS term', async function () {
@@ -180,11 +188,15 @@ contract('Lockdrop', (accounts) => {
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
     let { validatingLocks, locks, totalETHLocked } = allocation;
+    const signalAllocation = await ldHelpers.calculateEffectiveSignals(lockdrop);
+    let { signals, totalETHSignaled } = signalAllocation;
+    const totalETH = totalETHLocked.add(totalETHSignaled);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
 
-    console.log(locks);
-    for (key in locks) {
-      assert.equal(locks[key].effectiveValue, toBN(totalAllocation).div(toBN(accounts.length)).toString());
-    }
+    const bal = web3.utils.fromWei(toBN(totalAllocation).div(toBN(accounts.length)).toString(), 'ether');
+    json.balances.forEach(elt => {
+      assert.equal(elt[1], bal);
+    });
   });
 
   it('should aggregate the balances for all non validators and separate for validators', async function () {

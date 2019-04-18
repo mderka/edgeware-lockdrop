@@ -26,19 +26,19 @@ function getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart) {
 }
 
 function getEffectiveValue(ethAmount, term, lockTime, lockStart) {
+  let additiveBonus;
+  // get additive bonus if calculating allocation of locks
+  if (lockTime && lockStart) {
+    additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart);
+  }
+
   if (term == '0') {
-    // get lock period additive bonus
-    const additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart)
     // three month term yields no bonus
     return toBN(ethAmount).mul(toBN(100).add(additiveBonus)).div(toBN(100));
   } else if (term == '1') {
-    // get lock period additive bonus
-    const additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart)
     // six month term yields 10% bonus
     return toBN(ethAmount).mul(toBN(110).add(additiveBonus)).div(toBN(100));
   } else if (term == '2') {
-    // get lock period additive bonus
-    const additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart)
     // twelve month term yields 40% bonus
     return toBN(ethAmount).mul(toBN(140).add(additiveBonus)).div(toBN(100));
   } else if (term == 'signaling') {
