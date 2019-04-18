@@ -238,7 +238,7 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
       // if key locked, then we only need to create a vesting record as we created the balances record above
       vesting.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(),
+        web3.utils.fromWei(toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
         68400 * 365 // 1 year FIXME: see what vesting in substrate does
       ]);
     } else {
@@ -251,7 +251,7 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
       // create vesting record
       vesting.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(),
+        web3.utils.fromWei(toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
         68400 * 365 // 1 year FIXME: see what vesting in substrate does
       ]);
     }
