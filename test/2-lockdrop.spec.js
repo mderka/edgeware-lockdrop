@@ -88,7 +88,7 @@ contract('Lockdrop', (accounts) => {
       });
     }));
 
-    const totalAllocation = '5000000000000000000000000000';
+    const totalAllocation = '5000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
     let { validatingLocks, locks, totalETHLocked } = allocation;
     // console.log(validatingLocks, locks, web3.utils.fromWei(totalETHLocked.toString(), 'ether'));
@@ -102,9 +102,12 @@ contract('Lockdrop', (accounts) => {
     let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
     let validators = ldHelpers.selectEdgewareValidators(validatingLocks, totalAllocation, totalETH, 4);
     
-
+    let sum = toBN(0);
     json.balances.forEach((elt, inx) => {
       assert.equal(elt[0], fixtures[inx].base58Address);
+      sum = sum.add(toBN(elt[1]));
     });
+
+    assert.ok(sum < toBN(totalAllocation).add(toBN(10)) || sum > toBN(totalAllocation).sub(toBN(10)))
   });
 });

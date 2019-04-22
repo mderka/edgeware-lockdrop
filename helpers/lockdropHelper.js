@@ -223,12 +223,12 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
       const summation = toBN(locks[key].effectiveValue).add(signals[key].immediateEffectiveValue);
       balances.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        web3.utils.fromWei(summation.mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+        mulByAllocationFraction(summation, totalAllocation, totalETH),
       ]);
     } else {
       balances.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        web3.utils.fromWei(toBN(locks[key].effectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+        mulByAllocationFraction(locks[key].effectiveValue, totalAllocation, totalETH).toString(),
       ]);
     }
   }
@@ -238,7 +238,7 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
       // if key locked, then we only need to create a vesting record as we created the balances record above
       vesting.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        web3.utils.fromWei(toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+        mulByAllocationFraction(signals[key].delayedEffectiveValue, totalAllocation, totalETH).toString(),
         68400 * 365 // 1 year FIXME: see what vesting in substrate does
       ]);
     } else {
@@ -246,12 +246,12 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
       // create balances record
       balances.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        web3.utils.fromWei(toBN(locks[key].immediateEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+        mulByAllocationFraction(locks[key].immediateEffectiveValue, totalAllocation, totalETH).toString(),
       ]);
       // create vesting record
       vesting.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        web3.utils.fromWei(toBN(signals[key].delayedEffectiveValue).mul(toBN(totalAllocation)).div(totalETH).toString(), 'ether'),
+        mulByAllocationFraction(signals[key].delayedEffectiveValue, totalAllocation, totalETH).toString(),
         68400 * 365 // 1 year FIXME: see what vesting in substrate does
       ]);
     }
@@ -260,6 +260,9 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
   return { balances: balances, vesting: vesting };
 };
 
+const mulByAllocationFraction = (amount, totalAllocation, totalETH) => {
+  return toBN(amount).mul(toBN(totalAllocation)).div(totalETH);
+}
 
 module.exports = {
   getLocks,
