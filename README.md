@@ -1,4 +1,4 @@
-# edge-lockdrop
+# edgeware-lockdrop
 This repo contains the smart contracts and scripts for the Edgeware lockdrop. The lockdrop contract enables users to _lock_ and _signal_ ether towards a given project. Users specify either 3, 6, or 12 month lockups and must submit an edgeware 32 byte hex public key and their interest in staking as a validator. The scripts aggregate transactions on behalf of a lockdrop contract and compile the JSON objects necessary for a substrate genesis specification.
 
 ## Usage
