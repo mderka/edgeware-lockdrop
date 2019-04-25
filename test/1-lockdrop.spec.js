@@ -8,7 +8,7 @@ const keccak = require('keccak');
 const Lock = artifacts.require("./Lock.sol");
 const Lockdrop = artifacts.require("./Lockdrop.sol");
 
-contract('Lockdrop', (accounts) => {
+contract('Lockdrop-1', (accounts) => {
   const SECONDS_IN_DAY = 86400;
   const THREE_MONTHS = 0;
   const SIX_MONTHS = 1;
@@ -149,7 +149,7 @@ contract('Lockdrop', (accounts) => {
     const totalETH = totalETHLocked.add(totalETHSignaled);
     let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
 
-    const bal = web3.utils.fromWei(toBN(totalAllocation).div(toBN(accounts.length)).toString(), 'ether');
+    const bal = toBN(totalAllocation).div(toBN(accounts.length)).toString();
     json.balances.forEach(elt => {
       assert.equal(elt[1], bal);
     });
@@ -171,7 +171,7 @@ contract('Lockdrop', (accounts) => {
     const totalETH = totalETHLocked.add(totalETHSignaled);
     let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
 
-    const bal = web3.utils.fromWei(toBN(totalAllocation).div(toBN(accounts.length)).toString(), 'ether');
+    const bal = toBN(totalAllocation).div(toBN(accounts.length)).toString();
     json.balances.forEach(elt => {
       assert.equal(elt[1], bal);
     });
@@ -193,7 +193,7 @@ contract('Lockdrop', (accounts) => {
     const totalETH = totalETHLocked.add(totalETHSignaled);
     let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
 
-    const bal = web3.utils.fromWei(toBN(totalAllocation).div(toBN(accounts.length)).toString(), 'ether');
+    const bal = toBN(totalAllocation).div(toBN(accounts.length)).toString();
     json.balances.forEach(elt => {
       assert.equal(elt[1], bal);
     });

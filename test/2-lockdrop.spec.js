@@ -60,7 +60,7 @@ const fixtures = [{
   base58Address: "5CZZiVLMCujNAmwkTJ4vWtijEQsqhusTAHQmZTbXzddtDsox",
 }];
 
-contract('Lockdrop', (accounts) => {
+contract('Lockdrop-2', (accounts) => {
   const SECONDS_IN_DAY = 86400;
   const THREE_MONTHS = 0;
   const SIX_MONTHS = 1;
