@@ -8,6 +8,7 @@ const ldHelpers = require("../helpers/lockdropHelper.js");
 const LOCKDROP_JSON = JSON.parse(fs.readFileSync('./build/contracts/Lockdrop.json').toString());
 const ETH_PRIVATE_KEY = process.env.ETH_PRIVATE_KEY;
 const ETH_ADDRESS = process.env.ETH_ADDRESS;
+const LOCKDROP_CONTRACT_ADDRESS = process.env.LOCKDROP_CONTRACT_ADDRESS;
 const LOCALHOST_URL = 'http://localhost:8545';
 
 program
@@ -18,13 +19,13 @@ program
   .option('-n, --nonce <nonce>', 'Transaction nonce that created a specific contract address')
   .option('-u, --unlock', 'Unlock ETH from a specific lock contract')
   .option('-r, --remoteUrl <url>', 'The remote URL of an Ethereum node (defaults to localhost:8545)')
-  .option('--lockContractAddress <addr>', 'The Ethereum address for a lock contract')
-  .option('--lockdropContractAddress <addr>', 'lockers')
-  .option('--lockers', 'Get the allocation for the current set of lockers')
+  .option('--lockContractAddress <addr>', 'The Ethereum address for a lock contract (NOT A LOCKDROP CONTRACT)')
+  .option('--lockdropContractAddress <addr>', 'The Ethereum address for the target Lockdrop (THIS IS A LOCKDROP CONTRACT)')
+  .option('--lockerAllocation', 'Get the allocation for the current set of lockers')
   .option('--ending', 'Get the remaining time of the lockdrop')
   .option('--lockLength <length>', 'The desired lock length - (3, 6, or 12)')
-  .option('--lockValue <value>', 'The amount of Ether denominated in WEI')
-  .option('--pubKey <key>', 'Edgeware ED25519 pubKey in hex')
+  .option('--lockValue <value>', 'The amount of Ether to lock')
+  .option('--edgeAddress <key>', 'Edgeware ED25519 Base58 encoded address')
   .option('--isValidator', 'A boolean flag indicating intent to be a validator')
   .parse(process.argv);
 
@@ -34,19 +35,18 @@ async function getCurrentTimestamp(remoteUrl=LOCALHOST_URL) {
   return block.timestamp;
 }
 
-async function getLockdropLocks(lockdropContractAddress, remoteUrl=LOCALHOST_URL, totalIssuance='5000000000000000000000000000') {
+async function getLockdropAllocation(lockdropContractAddress, remoteUrl=LOCALHOST_URL, totalIssuance='5000000000000000000000000') {
   console.log('Fetching Lockdrop locked locks...');
   console.log("");
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
   const allocation = await ldHelpers.calculateEffectiveLocks(contract, totalIssuance);
-  console.log(allocation);
   return allocation;
 };
 
-async function lock(lockdropAddress, length, value, pubKey, isValidator=false, remoteUrl=LOCALHOST_URL) {
+async function lock(lockdropAddress, length, value, edgeAddress, isValidator=false, remoteUrl=LOCALHOST_URL) {
   if (length != "3" || length != "6" || length != "12") throw new Error('Invalid length, must pass in 3, 6, 12');
-  console.log(`locking ${value} into Lockdrop contract for ${length} days. Receiver: ${pubKey}`);
+  console.log(`locking ${value} into Lockdrop contract for ${length} days. Receiver: ${edgeAddress}`);
   console.log("");
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
@@ -57,7 +57,7 @@ async function lock(lockdropAddress, length, value, pubKey, isValidator=false, r
     from: ETH_ADDRESS,
     to: lockdropAddress,
     gas: 150000,
-    data: contract.methods.lock(length, pubKey, isValidator).encodeABI(),
+    data: contract.methods.lock(length, edgeAddress, isValidator).encodeABI(),
     value,
   });
 
@@ -67,8 +67,8 @@ async function lock(lockdropAddress, length, value, pubKey, isValidator=false, r
   console.log(`Transaction send: ${txHash}`);
 }
 
-async function signal(lockdropAddress, signalingAddress, nonce, pubKey, remoteUrl=LOCALHOST_URL) {
-  console.log(`Signaling into Lockdrop contract from address ${signalAddr}. Receiver: ${pubKey}`);
+async function signal(lockdropAddress, signalingAddress, nonce, edgeAddress, remoteUrl=LOCALHOST_URL) {
+  console.log(`Signaling into Lockdrop contract from address ${signalAddr}. Receiver: ${edgeAddress}`);
   console.log("");
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
@@ -78,7 +78,7 @@ async function signal(lockdropAddress, signalingAddress, nonce, pubKey, remoteUr
     from: ETH_ADDRESS,
     to: lockdropAddress,
     gas: 150000,
-    data: contract.methods.signal(signalingAddress, nonce, pubKey).encodeABI(),
+    data: contract.methods.signal(signalingAddress, nonce, edgeAddress).encodeABI(),
     value,
   }); 
 
@@ -127,26 +127,33 @@ async function getEnding(lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
   console.log(`Ending in ${(ending - now) / 60} minutes`);
 }
 
-if (!program.lockdropContractAddress) {
+// At least one should be populated
+if (!program.lockdropContractAddress && !!LOCKDROP_CONTRACT_ADDRESS) {
   throw new Error('Input a contract address for the Lockdrop contract');
 }
 
-if (program.lockers) getLockdropLocks(program.lockdropContractAddress, program.remoteUrl);
+// If passed in through .env
+if (LOCKDROP_CONTRACT_ADDRESS) {
+  program.lockdropContractAddress = LOCKDROP_CONTRACT_ADDRESS
+}
+
+if (program.lockerAllocation) getLockdropAllocation(program.lockdropContractAddress, program.remoteUrl);
 if (program.balance) getBalance(program.lockdropContractAddress, program.remoteUrl);
 if (program.ending) getEnding(program.lockdropContractAddress, program.remoteUrl);
 
 if (program.lock) {
-  if (!program.lockLength || !program.lockValue || !program.pubKey) {
-    throw new Error('Please input a length and value using --lockLength, --lockValue and --pubKey');
+  if (!program.lockLength || !program.lockValue || !program.edgeAddress) {
+    throw new Error('Please input a length and value using --lockLength, --lockValue and --edgeAddress');
   }
-  lock(program.lockdropContractAddress, program.lockLength, program.lockValue, program.pubKey, (!!program.isValidator), program.remoteUrl);
+  lock(program.lockdropContractAddress, program.lockLength, program.lockValue, program.edgeAddress, (!!program.isValidator), program.remoteUrl);
 }
 
 if (program.signal) {
-  if (!program.nonce || !program.pubKey) {
-    throw new Error('Please input a transaction nonce for the sending account with --nonce and --pubKey');
+  console.log(program.signal);
+  if (!program.nonce || !program.edgeAddress) {
+    throw new Error('Please input a transaction nonce for the sending account with --nonce and --edgeAddress');
   }
-  signal(program.lockdropContractAddress, program.signal, program.nonce, program.pubKey, program.remoteUrl);
+  signal(program.lockdropContractAddress, program.signal, program.nonce, program.edgeAddress, program.remoteUrl);
 }
 
 if (program.unlock) {

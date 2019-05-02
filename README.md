@@ -31,13 +31,13 @@ Options:
   -n, --nonce <nonce>               Transaction nonce that created a specific contract address
   -u, --unlock                      Unlock ETH from a specific lock contract
   -r, --remoteUrl <url>             The remote URL of an Ethereum node (defaults to localhost:8545)
-  --lockContractAddress <addr>      The Ethereum address for a lock contract
-  --lockdropContractAddress <addr>  lockers
-  --lockers                         Get the allocation for the current set of lockers
+  --lockContractAddress <addr>      The Ethereum address for a lock contract (NOT A LOCKDROP CONTRACT)
+  --lockdropContractAddress <addr>  The Ethereum address for the target Lockdrop (THIS IS A LOCKDROP CONTRACT)
+  --lockerAllocation                Get the allocation for the current set of lockers
   --ending                          Get the remaining time of the lockdrop
   --lockLength <length>             The desired lock length - (3, 6, or 12)
-  --lockValue <value>               The amount of Ether denominated in WEI
-  --pubKey <key>                    Edgeware ED25519 pubKey in hex
+  --lockValue <value>               The amount of Ether to lock
+  --edgeAddress <key>               Edgeware ED25519 Base58 encoded address
   --isValidator                     A boolean flag indicating intent to be a validator
   -h, --help                        output usage information
 
