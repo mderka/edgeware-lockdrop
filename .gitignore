@@ -1,4 +1,5 @@
 .DS_STORE
+!build/contracts/Lockdrop.json
 build
 node_modules
 .env
