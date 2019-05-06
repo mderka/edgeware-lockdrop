@@ -3,13 +3,22 @@ const program = require('commander');
 const Web3 = require('web3');
 const EthereumTx = require('ethereumjs-tx')
 const fs = require('fs');
+const HDWalletProvider = require("truffle-hdwallet-provider");
 const ldHelpers = require("../helpers/lockdropHelper.js");
+const bs58 = require('bs58');
 
 const LOCKDROP_JSON = JSON.parse(fs.readFileSync('./build/contracts/Lockdrop.json').toString());
+// TO USE WHEN USER HAS PRIVATE KEY SEED AND ADDRESS IN HEX
 const ETH_PRIVATE_KEY = process.env.ETH_PRIVATE_KEY;
 const ETH_ADDRESS = process.env.ETH_ADDRESS;
+// TO USE WHEN USER HAS MNEMONIC AND DERIVATION PATH
+const MNEMONIC = process.env.MNEMONIC;
+const DERIVATION_PATH = process.env.DERIVATION_PATH;
+
 const LOCKDROP_CONTRACT_ADDRESS = process.env.LOCKDROP_CONTRACT_ADDRESS;
 const LOCALHOST_URL = 'http://localhost:8545';
+
+const hasMnemonic = (MNEMONIC)
 
 program
   .version('0.1.0')
@@ -29,6 +38,20 @@ program
   .option('--isValidator', 'A boolean flag indicating intent to be a validator')
   .parse(process.argv);
 
+/**
+ * Ensure that the input is a formed correctly
+ * @param {String} input
+ */
+const BASE58_ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+function validateBase58Input(input) {
+  for (inx in input) {
+    if (BASE58_ALPHABET.indexOf(input[inx]) == -1) {
+      return false;
+    }
+  }
+  return true;
+}
+
 async function getCurrentTimestamp(remoteUrl=LOCALHOST_URL) {
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
   const block = await web3.eth.getBlock("latest");
@@ -44,30 +67,58 @@ async function getLockdropAllocation(lockdropContractAddress, remoteUrl=LOCALHOS
   return allocation;
 };
 
-async function lock(lockdropAddress, length, value, edgeAddress, isValidator=false, remoteUrl=LOCALHOST_URL) {
-  if (length != "3" || length != "6" || length != "12") throw new Error('Invalid length, must pass in 3, 6, 12');
+async function lock(lockdropContractAddress, length, value, edgeAddress, isValidator=false, remoteUrl=LOCALHOST_URL) {
+  if (["3", "6", "12"].indexOf(length) === -1) throw new Error('Invalid length, must pass in 3, 6, 12');
   console.log(`locking ${value} into Lockdrop contract for ${length} days. Receiver: ${edgeAddress}`);
   console.log("");
-  const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
+
+
+  let web3;
+  let provider;
+  let ethAddress;
+  // Switch on key type provided
+  if (hasMnemonic) {
+    provider = new HDWalletProvider(MNEMONIC, remoteUrl, 0, 1, true, DERIVATION_PATH);
+    web3 = new Web3(provider);
+    ethAddress = provider.addresses[0];
+  } else {
+    let keyHex;
+    if (ETH_PRIVATE_KEY.indexOf('0x') > 0) {
+      keyHex = ETH_PRIVATE_KEY.slice(2);
+    } else {
+      keyHex = ETH_PRIVATE_KEY;
+    }
+    
+    provider = new HDWalletProvider(keyHex, remoteUrl);
+    web3 = new Web3(provider);
+    ethAddress = ETH_ADDRESS;
+  }
+  console.log(provider);
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
   let lockLength = (length == "3") ? 3 : (length == "6") ? 6 : 12;
-  let txNonce = await web3.eth.getTransactionCount(ETH_ADDRESS);
-  const tx = new EthereumTx({
-    nonce: txNonce,
-    from: ETH_ADDRESS,
-    to: lockdropAddress,
-    gas: 150000,
-    data: contract.methods.lock(length, edgeAddress, isValidator).encodeABI(),
-    value,
-  });
+  console.log(ethAddress, lockLength, web3.utils.toWei(value, 'ether'))
+  // let txNonce = await web3.eth.getTransactionCount(ETH_ADDRESS);
+  // const tx = new EthereumTx({
+  //   nonce: txNonce,
+  //   from: ETH_ADDRESS,
+  //   to: lockdropContractAddress,
+  //   gas: 150000,
+  //   data: contract.methods.lock(length, edgeAddress, isValidator).encodeABI(),
+  //   value,
+  // });
 
-  tx.sign(Buffer.from(ETH_PRIVATE_KEY, 'hex'));
-  var raw = '0x' + tx.serialize().toString('hex');
-  const txHash = await web3.eth.sendSignedTransaction(raw);
+  // tx.sign(Buffer.from(ETH_PRIVATE_KEY, 'hex'));
+  // var raw = '0x' + tx.serialize().toString('hex');
+  // const txHash = await web3.eth.sendSignedTransaction(raw);
+
+  let txHash = await contract.methods
+    .lock(length, edgeAddress, isValidator)
+    .send({ from: ethAddress, value: web3.utils.toWei(value, 'ether') })
+
   console.log(`Transaction send: ${txHash}`);
 }
 
-async function signal(lockdropAddress, signalingAddress, nonce, edgeAddress, remoteUrl=LOCALHOST_URL) {
+async function signal(lockdropContractAddress, signalingAddress, nonce, edgeAddress, remoteUrl=LOCALHOST_URL) {
   console.log(`Signaling into Lockdrop contract from address ${signalAddr}. Receiver: ${edgeAddress}`);
   console.log("");
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
@@ -76,7 +127,7 @@ async function signal(lockdropAddress, signalingAddress, nonce, edgeAddress, rem
   const tx = new EthereumTx({
     nonce: txNonce,
     from: ETH_ADDRESS,
-    to: lockdropAddress,
+    to: lockdropContractAddress,
     gas: 150000,
     data: contract.methods.signal(signalingAddress, nonce, edgeAddress).encodeABI(),
     value,
@@ -128,7 +179,7 @@ async function getEnding(lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
 }
 
 // At least one should be populated
-if (!program.lockdropContractAddress && !!LOCKDROP_CONTRACT_ADDRESS) {
+if (!program.lockdropContractAddress && !LOCKDROP_CONTRACT_ADDRESS) {
   throw new Error('Input a contract address for the Lockdrop contract');
 }
 
@@ -140,6 +191,11 @@ if (LOCKDROP_CONTRACT_ADDRESS) {
 if (program.lockerAllocation) getLockdropAllocation(program.lockdropContractAddress, program.remoteUrl);
 if (program.balance) getBalance(program.lockdropContractAddress, program.remoteUrl);
 if (program.ending) getEnding(program.lockdropContractAddress, program.remoteUrl);
+
+// Encode base58 address is submitted
+if (validateBase58Input(program.edgeAddress)) {
+  program.edgeAddress = `0x${bs58.decode(program.edgeAddress).toString('hex')}`;
+}
 
 if (program.lock) {
   if (!program.lockLength || !program.lockValue || !program.edgeAddress) {
@@ -163,3 +219,4 @@ if (program.unlock) {
     unlock(program.lockContractAddress)
   }
 }
+

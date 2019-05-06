@@ -5,5 +5,5 @@ const Lockdrop = artifacts.require("./Lockdrop.sol");
 
 module.exports = async function(deployer, network, accounts) {
   let time = await utility.getCurrentTimestamp(web3);
-  await deployer.deploy(Lockdrop, time);
+  let instance = await deployer.deploy(Lockdrop, time);
 };

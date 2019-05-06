@@ -34,7 +34,8 @@ contract Lockdrop {
         TwelveMo
     }
     // Time constants
-    uint256 constant public LOCK_DROP_PERIOD = 1 days * 93; // 3 months
+    // uint256 constant public LOCK_DROP_PERIOD = 1 days * 93; // 3 months
+    uint256 constant public LOCK_DROP_PERIOD = 1 minutes; // 3 months
     uint256 constant public LOCK_DROP_FIRST_MONTH = 1 days * 31;
     uint256 constant public LOCK_DROP_SECOND_MONTH = 1 days * 62;
     uint256 public LOCK_START_TIME;
@@ -86,7 +87,7 @@ contract Lockdrop {
     }
 
     function unlockTimeForTerm(Term term) internal view returns (uint256) {
-        if (term == Term.ThreeMo) return now + 92 days;
+        if (term == Term.ThreeMo) return now + 93 days;
         if (term == Term.SixMo) return now + 183 days;
         if (term == Term.TwelveMo) return now + 365 days;
         
