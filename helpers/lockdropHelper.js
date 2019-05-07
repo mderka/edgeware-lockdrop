@@ -95,7 +95,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
     toBlock: 'latest',
   });
 
-  const lockdropStartTime = (await lockdropContract.LOCK_START_TIME()).toNumber();
+  const lockdropStartTime = (await lockdropContract.methods.LOCK_START_TIME().call());
 
   lockEvents.forEach((event) => {
     const data = event.returnValues;
