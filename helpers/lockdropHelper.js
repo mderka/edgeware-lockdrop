@@ -1,5 +1,5 @@
 const Promise = require('bluebird');
-const { toBN } = require('web3').utils;
+const { toBN, fromWei, hexToNumber } = require('web3').utils;
 const bs58 = require('bs58');
 
 function getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart) {
@@ -14,7 +14,7 @@ function getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart) {
   }
 
   // calculate the additive bonus for the period the lock occurred
-  if (lockTime < lockStart + SECONDS_IN_MONTH) {
+  if (toBN(lockTime) < toBN(lockStart).add(toBN(SECONDS_IN_MONTH))) {
     return toBN(40);
   } else if (lockTime < lockStart + (SECONDS_IN_MONTH * 2)) {
     return toBN(30);
@@ -82,7 +82,7 @@ const getTotalLockedBalance = async (lockdropContract) => {
     totalAmountInETH = totalAmountInETH.add(toBN(data.eth));
   });
 
-  return web3.utils.fromWei(totalAmountInETH.toString(), 'ether');
+  return fromWei(totalAmountInETH.toString(), 'ether');
 };
 
 const calculateEffectiveLocks = async (lockdropContract) => {
@@ -95,7 +95,13 @@ const calculateEffectiveLocks = async (lockdropContract) => {
     toBlock: 'latest',
   });
 
-  const lockdropStartTime = (await lockdropContract.methods.LOCK_START_TIME().call());
+  // For truffle tests
+  let lockdropStartTime;
+  if (lockdropContract.methods['LOCK_START_TIME()']) {
+    lockdropStartTime = (await lockdropContract.LOCK_START_TIME());
+  } else {
+    lockdropStartTime = (await lockdropContract.methods.LOCK_START_TIME().call());
+  }
 
   lockEvents.forEach((event) => {
     const data = event.returnValues;
@@ -139,7 +145,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
   return { validatingLocks, locks, totalETHLocked };
 };
 
-const calculateEffectiveSignals = async (lockdropContract, blockNumber=null) => {
+const calculateEffectiveSignals = async (web3, lockdropContract, blockNumber=null) => {
   let totalETHSignaled = toBN(0);
   let signals = {};
 
@@ -193,7 +199,7 @@ const getLockStorage = async (lockAddress) => {
   .then(vals => {
     return {
       owner: vals[0],
-      unlockTime: web3.utils.hexToNumber(vals[1]),
+      unlockTime: hexToNumber(vals[1]),
     };
   });
 };
