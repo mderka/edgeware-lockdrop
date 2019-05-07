@@ -1,6 +1,8 @@
 require('dotenv').config();
 const program = require('commander');
 const Web3 = require('web3');
+const { toBN } = require('web3').utils;
+
 const EthereumTx = require('ethereumjs-tx')
 const fs = require('fs');
 const bs58 = require('bs58');
@@ -11,7 +13,6 @@ const ETH_PRIVATE_KEY = (process.env.ETH_PRIVATE_KEY.indexOf('0x') === -1)
   ? process.env.ETH_PRIVATE_KEY
   : process.env.ETH_PRIVATE_KEY.slice(2);
 const ETH_ADDRESS = process.env.ETH_ADDRESS;
-console.log(ETH_PRIVATE_KEY, ETH_ADDRESS);
 const LOCKDROP_CONTRACT_ADDRESS = process.env.LOCKDROP_CONTRACT_ADDRESS;
 const LOCALHOST_URL = 'http://localhost:8545';
 
@@ -19,11 +20,11 @@ program
   .version('0.1.0')
   .option('-b, --balance', 'Get the total balance across all locks')
   .option('-l, --lock', 'Lock ETH with the lockdrop')
-  .option('-s, --signal <signalingAddress>', 'Signal a contract balance in the lockdrop')
+  .option('-s, --signal <contractAddress>', 'Signal a contract balance in the lockdrop')
   .option('-n, --nonce <nonce>', 'Transaction nonce that created a specific contract address')
-  .option('-u, --unlock', 'Unlock ETH from a specific lock contract')
+  .option('-u, --unlock <contractAddress>', 'Unlock ETH from a specific lock contract')
   .option('-r, --remoteUrl <url>', 'The remote URL of an Ethereum node (defaults to localhost:8545)')
-  .option('--lockContractAddress <addr>', 'The Ethereum address for a lock contract (NOT A LOCKDROP CONTRACT)')
+  .option('--unlockAll', 'Unlock all locks from the locally stored Ethereum address')
   .option('--lockdropContractAddress <addr>', 'The Ethereum address for the target Lockdrop (THIS IS A LOCKDROP CONTRACT)')
   .option('--lockerAllocation', 'Get the allocation for the current set of lockers')
   .option('--ending', 'Get the remaining time of the lockdrop')
@@ -31,7 +32,7 @@ program
   .option('--lockValue <value>', 'The amount of Ether to lock')
   .option('--edgeAddress <key>', 'Edgeware ED25519 Base58 encoded address')
   .option('--isValidator', 'A boolean flag indicating intent to be a validator')
-  .option('--locksForAddress <address>', 'Returns the history of lock contracts for a participant in the lockdrop')
+  .option('--locksForAddress <userAddress>', 'Returns the history of lock contracts for a participant in the lockdrop')
   .parse(process.argv);
 
 async function getCurrentTimestamp(remoteUrl=LOCALHOST_URL) {
@@ -60,14 +61,16 @@ async function lock(lockdropContractAddress, length, value, edgeAddress, isValid
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
   let lockLength = (length == "3") ? 0 : (length == "6") ? 1 : 2;
   let txNonce = await web3.eth.getTransactionCount(ETH_ADDRESS);
-  console.log(txNonce, lockLength);
+  let balance = await web3.eth.getBalance(ETH_ADDRESS);
+  value = web3.utils.toWei(value, 'ether');
+
   const tx = new EthereumTx({
     nonce: txNonce,
     from: ETH_ADDRESS,
     to: lockdropContractAddress,
     gas: 150000,
     data: contract.methods.lock(lockLength, edgeAddress, isValidator).encodeABI(),
-    value,
+    value: toBN(value),
   });
 
   console.log(tx.toJSON());
@@ -89,7 +92,7 @@ async function signal(lockdropContractAddress, signalingAddress, nonce, edgeAddr
     to: lockdropContractAddress,
     gas: 150000,
     data: contract.methods.signal(signalingAddress, nonce, edgeAddress).encodeABI(),
-    value,
+    value: toBN(0),
   }); 
 
   tx.sign(Buffer.from(ETH_PRIVATE_KEY, 'hex'));
@@ -98,62 +101,81 @@ async function signal(lockdropContractAddress, signalingAddress, nonce, edgeAddr
   console.log(`Transaction send: ${txHash}`);
 }
 
-async function unlock(lockContractAddress, remoteUrl=LOCALHOST_URL) {
-  console.log(`Unlocking lock for account: ${coinbase}`);
-  console.log("");
+async function unlock(lockContractAddress, remoteUrl=LOCALHOST_URL, nonce=undefined) {
+  console.log(`Unlocking lock contract: ${lockContractAddress}`);
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
-  const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
   try {
-    let txNonce = await web3.eth.getTransactionCount(ETH_ADDRESS);
+    if (!nonce) {
+      nonce = await web3.eth.getTransactionCount(ETH_ADDRESS);
+    }
+
     const tx = new EthereumTx({
-      nonce: txNonce,
+      nonce: nonce,
       from: ETH_ADDRESS,
       to: lockContractAddress,
       gas: 100000,
     });
     tx.sign(Buffer.from(ETH_PRIVATE_KEY, 'hex'));
     var raw = '0x' + tx.serialize().toString('hex');
-    const txHash = await web3.eth.sendSignedTransaction(raw);
-    console.log(`Transaction send: ${txHash}`);
+    const txReceipt = await web3.eth.sendSignedTransaction(raw);
+    console.log(`Transaction send: ${txReceipt.transactionHash}`);
   } catch(e) {
     console.log(e);
   }
 }
 
+async function unlockAll(lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
+  console.log(`Fetching all locks for user ${ETH_ADDRESS} for lockdrop contract ${lockdropContractAddress}\n`);
+  const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
+  const balanceBefore = web3.utils.fromWei((await web3.eth.getBalance(ETH_ADDRESS)), 'ether');
+  console.log(`Balance before unlocking: ${balanceBefore}`);
+  const locks = await getLocksForAddress(ETH_ADDRESS, lockdropContractAddress, remoteUrl);
+  let txNonce = await web3.eth.getTransactionCount(ETH_ADDRESS);
+  let promises = locks.map(async (lock, inx) => {
+    return await unlock(lock.lockContractAddr, remoteUrl, txNonce + inx);
+  });
+
+  const result = await Promise.all(promises);
+  const afterBalance = web3.utils.fromWei((await web3.eth.getBalance(ETH_ADDRESS)), 'ether');
+  console.log(`Balance after unlocking: ${afterBalance}`);
+}
+
 async function getBalance(lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
-  console.log('Fetching Lockdrop balance...');
-  console.log("");
+  console.log(`Fetching Lockdrop balance from lockdrop contract ${lockdropContractAddress}\n`);
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
   return await ldHelpers.getTotalLockedBalance(contract);
 };
 
 async function getEnding(lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
+  console.log(`Calculating ending of lock period for lockdrop contract ${lockdropContractAddress}\n`);
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
   const ending = await contract.methods.LOCK_END_TIME().call();
   const now = await getCurrentTimestamp(remoteUrl);
-  console.log(`Ending in ${(ending - now) / 60} minutes`);
+  return ending - now;
 }
 
-async function getLocksForAddress(address, lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
+async function getLocksForAddress(userAddress, lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
   const web3 = new Web3(new Web3.providers.HttpProvider(remoteUrl));
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
-  const lockEvents = await ldHelpers.getLocks(contract, address);
-  let locks = lockEvents.map(async event => {
-    let lockStorage = await ldHelpers.getLockStorage(event.returnValues.lockAddr);
-    console.log(lockStorage);
+  const lockEvents = await ldHelpers.getLocks(contract, userAddress);
+  const now = await getCurrentTimestamp(remoteUrl);
+
+  let promises = lockEvents.map(async event => {
+    let lockStorage = await ldHelpers.getLockStorage(web3, event.returnValues.lockAddr);
     return {
       owner: event.returnValues.owner,
       eth: event.returnValues.eth,
       lockContractAddr: event.returnValues.lockAddr,
       term: event.returnValues.term,
       edgewareKey: event.returnValues.edgewareKey,
+      edgewareKeyAsBase58: bs58.encode(new Buffer(event.returnValues.edgewareKey.slice(2), 'hex')),
+      unlockTime: `${(lockStorage.unlockTime - now) / 60} minutes`,
     };
   });
 
-  console.log(locks);
-  console.log(await web3.eth.getBalance(address));
+  return await Promise.all(promises);
 }
 
 /**
@@ -170,7 +192,6 @@ function validateBase58Input(input) {
   return true;
 }
 
-console.log(LOCKDROP_CONTRACT_ADDRESS);
 // At least one should be populated
 if (LOCKDROP_CONTRACT_ADDRESS) {
   program.lockdropContractAddress = LOCKDROP_CONTRACT_ADDRESS;
@@ -187,7 +208,12 @@ if (LOCKDROP_CONTRACT_ADDRESS) {
 
 if (program.lockerAllocation) getLockdropAllocation(program.lockdropContractAddress, program.remoteUrl);
 if (program.balance) getBalance(program.lockdropContractAddress, program.remoteUrl);
-if (program.ending) getEnding(program.lockdropContractAddress, program.remoteUrl);
+if (program.ending) {
+  (async function() {
+    const timeDiff = await getEnding(program.lockdropContractAddress, program.remoteUrl);
+    console.log(`Ending in ${(timeDiff) / 60} minutes`);
+  })();
+}
 
 if (program.lock) {
   if (!program.lockLength || !program.lockValue || !program.edgeAddress) {
@@ -202,7 +228,6 @@ if (program.lock) {
 }
 
 if (program.signal) {
-  console.log(program.signal);
   if (!program.nonce || !program.edgeAddress) {
     throw new Error('Please input a transaction nonce for the sending account with --nonce and --edgeAddress');
   }
@@ -215,9 +240,16 @@ if (program.signal) {
 }
 
 if (program.unlock) {
-  unlock(program.lockContractAddress)
+  unlock(program.unlock, program.remoteUrl);
+}
+
+if (program.unlockAll) {
+  unlockAll(program.lockdropContractAddress, program.remoteUrl);
 }
 
 if (program.locksForAddress) {
-  getLocksForAddress(program.locksForAddress, program.lockdropContractAddress, program.remoteUrl);
+  (async function() {
+    const locks = await getLocksForAddress(program.locksForAddress, program.lockdropContractAddress, program.remoteUrl);
+    console.log(locks);
+  })();
 }

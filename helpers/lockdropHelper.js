@@ -192,7 +192,7 @@ const calculateEffectiveSignals = async (web3, lockdropContract, blockNumber=nul
   return {  signals: signals, totalETHSignaled: totalETHSignaled }
 }
 
-const getLockStorage = async (lockAddress) => {
+const getLockStorage = async (web3, lockAddress) => {
   return Promise.all([0,1].map(v => {
     return web3.eth.getStorageAt(lockAddress, v);
   }))
