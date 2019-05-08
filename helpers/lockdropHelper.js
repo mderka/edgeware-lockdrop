@@ -97,7 +97,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
 
   // For truffle tests
   let lockdropStartTime;
-  if (lockdropContract.methods['LOCK_START_TIME()']) {
+  if (typeof lockdropContract.LOCK_START_TIME === 'function') {
     lockdropStartTime = (await lockdropContract.LOCK_START_TIME());
   } else {
     lockdropStartTime = (await lockdropContract.methods.LOCK_START_TIME().call());
@@ -141,7 +141,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
       };
     }
   });
-
+  // Return validating locks, locks, and total ETH locked
   return { validatingLocks, locks, totalETHLocked };
 };
 
@@ -154,7 +154,7 @@ const calculateEffectiveSignals = async (web3, lockdropContract, blockNumber=nul
     toBlock: 'latest',
   });
 
-  signalEvents.forEach(async (event) => {
+  const promises = signalEvents.map(async (event) => {
     const data = event.returnValues;
     // Get balance at block that lockdrop ends
     let balance;
@@ -163,14 +163,14 @@ const calculateEffectiveSignals = async (web3, lockdropContract, blockNumber=nul
     } else {
       balance = await web3.eth.getBalance(data.contractAddr);
     }
-    
     // Get value for each signal event and add it to the collection
     let value = getEffectiveValue(balance, 'signaling');
+    // Add value to total signaled ETH
     totalETHSignaled = totalETHSignaled.add(value);
-
+    // Iterate over signals, partition reward into delayed and immediate amounts
     if (data.edgewareAddr in signals) {
       signals[data.edgewareAddr] = {
-        signalAmt: toBN(data.eth).add(toBN(signals[data.edgewareAddr].signalAmt)).toString(),
+        signalAmt: toBN(balance).add(toBN(signals[data.edgewareAddr].signalAmt)).toString(),
         delayedEffectiveValue: toBN(signals[data.edgewareAddr]
                                 .delayedEffectiveValue)
                                 .add(value.mul(toBN(75)).div(toBN(100)))
@@ -182,13 +182,16 @@ const calculateEffectiveSignals = async (web3, lockdropContract, blockNumber=nul
       };
     } else {
       signals[data.edgewareAddr] = {
-        signalAmt: toBN(data.eth).toString(),
+        signalAmt: toBN(balance).toString(),
         delayedEffectiveValue: value.mul(toBN(75)).div(toBN(100)).toString(),
         immediateEffectiveValue: value.mul(toBN(25)).div(toBN(100)).toString(),
       };
     }
   });
 
+  // Resolve promises to ensure all inner async functions have finished
+  await Promise.all(promises);
+  // Return signals and total ETH signaled
   return {  signals: signals, totalETHSignaled: totalETHSignaled }
 }
 
@@ -252,7 +255,7 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
       // create balances record
       balances.push([
         bs58.encode(new Buffer(key.slice(2), 'hex')),
-        mulByAllocationFraction(locks[key].immediateEffectiveValue, totalAllocation, totalETH).toString(),
+        mulByAllocationFraction(signals[key].immediateEffectiveValue, totalAllocation, totalETH).toString(),
       ]);
       // create vesting record
       vesting.push([
@@ -267,7 +270,7 @@ const getEdgewareBalanceObjects = (locks, signals, totalAllocation, totalETH) =>
 };
 
 const mulByAllocationFraction = (amount, totalAllocation, totalETH) => {
-  return toBN(amount).mul(toBN(totalAllocation)).div(totalETH);
+  return toBN(amount).mul(toBN(totalAllocation)).div(toBN(totalETH));
 }
 
 module.exports = {

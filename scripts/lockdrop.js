@@ -18,7 +18,7 @@ program
   .option('-r, --remoteUrl <url>', 'The remote URL of an Ethereum node (defaults to localhost:8545)')
   .option('--unlockAll', 'Unlock all locks from the locally stored Ethereum address')
   .option('--lockdropContractAddress <addr>', 'The Ethereum address for the target Lockdrop (THIS IS A LOCKDROP CONTRACT)')
-  .option('--lockerAllocation', 'Get the allocation for the current set of lockers')
+  .option('--allocation', 'Get the allocation for the current set of lockers')
   .option('--ending', 'Get the remaining time of the lockdrop')
   .option('--lockLength <length>', 'The desired lock length - (3, 6, or 12)')
   .option('--lockValue <value>', 'The amount of Ether to lock')
@@ -52,6 +52,8 @@ async function getLockdropAllocation(lockdropContractAddress, remoteUrl=LOCALHOS
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
   const { validatingLocks, locks, totalETHLocked } = await ldHelpers.calculateEffectiveLocks(contract);
   const { signals, totalETHSignaled } = await ldHelpers.calculateEffectiveSignals(web3, contract);
+  console.log(`Total ETH locked: ${totalETHLocked}, total ETH signaled: ${totalETHSignaled}`);
+  console.log((await web3.eth.getBalance(web3.currentProvider.addresses[0])).toString());
   const totalETH = totalETHLocked.add(totalETHSignaled);
   let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
   return json;
@@ -249,7 +251,7 @@ if (program.signal || program.lock) {
   }
 }
 
-if (program.lockerAllocation) {
+if (program.allocation) {
   (async function() {
     const json = await getLockdropAllocation(program.lockdropContractAddress, program.remoteUrl);
     console.log(json);
