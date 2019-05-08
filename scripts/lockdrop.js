@@ -1,7 +1,7 @@
 require('dotenv').config();
 const program = require('commander');
 const Web3 = require('web3');
-const { toBN } = require('web3').utils;
+const { toBN, fromWei } = require('web3').utils;
 const HDWalletProvider = require("truffle-hdwallet-provider");
 const EthereumTx = require('ethereumjs-tx')
 const bs58 = require('bs58');
@@ -50,12 +50,10 @@ async function getLockdropAllocation(lockdropContractAddress, remoteUrl=LOCALHOS
   console.log("");
   const web3 = getWeb3(remoteUrl);
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
-  const { validatingLocks, locks, totalETHLocked } = await ldHelpers.calculateEffectiveLocks(contract);
-  const { signals, totalETHSignaled } = await ldHelpers.calculateEffectiveSignals(web3, contract);
-  console.log(`Total ETH locked: ${totalETHLocked}, total ETH signaled: ${totalETHSignaled}`);
-  console.log((await web3.eth.getBalance(web3.currentProvider.addresses[0])).toString());
-  const totalETH = totalETHLocked.add(totalETHSignaled);
-  let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
+  const { locks, totalEffectiveETHLocked } = await ldHelpers.calculateEffectiveLocks(contract);
+  const { signals, totalEffectiveETHSignaled } = await ldHelpers.calculateEffectiveSignals(web3, contract);
+  const totalEffectiveETH = totalEffectiveETHLocked.add(totalEffectiveETHSignaled);
+  let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalEffectiveETH);
   return json;
 };
 
@@ -155,7 +153,9 @@ async function getBalance(lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
   console.log(`Fetching Lockdrop balance from lockdrop contract ${lockdropContractAddress}\n`);
   const web3 = getWeb3(remoteUrl);
   const contract = new web3.eth.Contract(LOCKDROP_JSON.abi, lockdropContractAddress);
-  return await ldHelpers.getTotalLockedBalance(contract);
+  let { totalETHLocked, totalEffectiveETHLocked } = await ldHelpers.getTotalLockedBalance(contract);
+  let { totalETHSignaled, totalEffectiveETHSignaled } = await ldHelpers.getTotalSignaledBalance(web3, contract);
+  return { totalETHLocked, totalEffectiveETHLocked, totalETHSignaled, totalEffectiveETHSignaled };
 };
 
 async function getEnding(lockdropContractAddress, remoteUrl=LOCALHOST_URL) {
@@ -261,9 +261,14 @@ if (program.allocation) {
 
 if (program.balance) {
   (async function() {
-    const { totalETHLocked, totalETHSignaled } = await getBalance(program.lockdropContractAddress, program.remoteUrl);
-    console.log(`Total ETH locked ${totalETHLocked}`);
-    console.log(`Total ETH signaled ${totalETHSignaled}`);
+    let {
+      totalETHLocked,
+      totalETHSignaled,
+      totalEffectiveETHLocked,
+      totalEffectiveETHSignaled
+    } = await getBalance(program.lockdropContractAddress, program.remoteUrl);
+    console.log(`Total ETH locked: ${fromWei(totalETHLocked, 'ether')}\nTotal ETH signaled: ${fromWei(totalETHSignaled, 'ether')}`);
+    console.log(`Total effective ETH locked: ${fromWei(totalEffectiveETHLocked, 'ether')}\nTotal effective ETH signaled: ${fromWei(totalEffectiveETHSignaled, 'ether')}`);
     process.exit(0);
   })();
 };

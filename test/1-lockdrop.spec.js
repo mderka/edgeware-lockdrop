@@ -143,11 +143,11 @@ contract('Lockdrop-1', (accounts) => {
 
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
-    let { validatingLocks, locks, totalETHLocked } = allocation;
+    let { validatingLocks, locks, totalEffectiveETHLocked } = allocation;
     const signalAllocation = await ldHelpers.calculateEffectiveSignals(web3, lockdrop);
-    let { signals, totalETHSignaled } = signalAllocation;
-    const totalETH = totalETHLocked.add(totalETHSignaled);
-    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
+    let { signals, totalEffectiveETHSignaled } = signalAllocation;
+    const totalEffectiveETH = totalEffectiveETHLocked.add(totalEffectiveETHSignaled);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalEffectiveETH);
 
     const bal = toBN(totalAllocation).div(toBN(accounts.length)).toString();
     json.balances.forEach(elt => {
@@ -165,11 +165,11 @@ contract('Lockdrop-1', (accounts) => {
 
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
-    let { validatingLocks, locks, totalETHLocked } = allocation;
+    let { validatingLocks, locks, totalEffectiveETHLocked } = allocation;
     const signalAllocation = await ldHelpers.calculateEffectiveSignals(web3, lockdrop);
-    let { signals, totalETHSignaled } = signalAllocation;
-    const totalETH = totalETHLocked.add(totalETHSignaled);
-    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
+    let { signals, totalEffectiveETHSignaled } = signalAllocation;
+    const totalEffectiveETH = totalEffectiveETHLocked.add(totalEffectiveETHSignaled);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalEffectiveETH);
 
     const bal = toBN(totalAllocation).div(toBN(accounts.length)).toString();
     json.balances.forEach(elt => {
@@ -187,11 +187,11 @@ contract('Lockdrop-1', (accounts) => {
 
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
-    let { validatingLocks, locks, totalETHLocked } = allocation;
+    let { validatingLocks, locks, totalEffectiveETHLocked } = allocation;
     const signalAllocation = await ldHelpers.calculateEffectiveSignals(web3, lockdrop);
-    let { signals, totalETHSignaled } = signalAllocation;
-    const totalETH = totalETHLocked.add(totalETHSignaled);
-    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
+    let { signals, totalEffectiveETHSignaled } = signalAllocation;
+    const totalEffectiveETH = totalEffectiveETHLocked.add(totalEffectiveETHSignaled);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalEffectiveETH);
 
     const bal = toBN(totalAllocation).div(toBN(accounts.length)).toString();
     json.balances.forEach(elt => {
@@ -214,7 +214,7 @@ contract('Lockdrop-1', (accounts) => {
 
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
-    let { validatingLocks, locks, totalETHLocked } = allocation;
+    let { validatingLocks, locks, totalEffectiveETHLocked } = allocation;
     assert.equal(Object.keys(validatingLocks).length, 1);
     assert.equal(Object.keys(locks).length, 1);
   });
@@ -229,12 +229,12 @@ contract('Lockdrop-1', (accounts) => {
 
     const totalAllocation = '5000000000000000000000000000';
     const allocation = await ldHelpers.calculateEffectiveLocks(lockdrop);
-    let { validatingLocks, locks, totalETHLocked } = allocation;
+    let { validatingLocks, locks, totalEffectiveETHLocked } = allocation;
     const signalAllocation = await ldHelpers.calculateEffectiveSignals(web3, lockdrop);
-    let { signals, totalETHSignaled } = signalAllocation;
-    const totalETH = totalETHLocked.add(totalETHSignaled);
-    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalETH);
-    let validators = ldHelpers.selectEdgewareValidators(validatingLocks, totalAllocation, totalETH, 10);
+    let { signals, totalEffectiveETHSignaled } = signalAllocation;
+    const totalEffectiveETH = totalEffectiveETHLocked.add(totalEffectiveETHSignaled);
+    let json = await ldHelpers.getEdgewareBalanceObjects(locks, signals, totalAllocation, totalEffectiveETH);
+    let validators = ldHelpers.selectEdgewareValidators(validatingLocks, totalAllocation, totalEffectiveETH, 10);
     assert(validators.length < 10);
     assert.ok(json.hasOwnProperty('balances'));
     assert.ok(json.hasOwnProperty('vesting'));
