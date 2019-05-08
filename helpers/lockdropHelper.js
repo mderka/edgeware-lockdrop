@@ -110,14 +110,14 @@ const calculateEffectiveLocks = async (lockdropContract) => {
 
     // Add all validators to a separate collection to do validator election over later
     if (data.isValidator) {
-      if (data.edgewareKey in validatingLocks) {
-        validatingLocks[data.edgewareKey] = {
-          lockAmt: toBN(data.eth).add(toBN(validatingLocks[data.edgewareKey].lockAmt)).toString(),
-          effectiveValue: toBN(validatingLocks[data.edgewareKey].effectiveValue).add(value).toString(),
-          lockAddrs: [data.lockAddr, ...validatingLocks[data.edgewareKey].lockAddrs],
+      if (data.edgewareAddr in validatingLocks) {
+        validatingLocks[data.edgewareAddr] = {
+          lockAmt: toBN(data.eth).add(toBN(validatingLocks[data.edgewareAddr].lockAmt)).toString(),
+          effectiveValue: toBN(validatingLocks[data.edgewareAddr].effectiveValue).add(value).toString(),
+          lockAddrs: [data.lockAddr, ...validatingLocks[data.edgewareAddr].lockAddrs],
         };
       } else {
-        validatingLocks[data.edgewareKey] = {
+        validatingLocks[data.edgewareAddr] = {
           lockAmt: toBN(data.eth).toString(),
           effectiveValue: value.toString(),
           lockAddrs: [data.lockAddr],
@@ -127,14 +127,14 @@ const calculateEffectiveLocks = async (lockdropContract) => {
 
 
     // Add all locks to collection, calculating/updating effective value of lock
-    if (data.edgewareKey in locks) {
-      locks[data.edgewareKey] = {
-        lockAmt: toBN(data.eth).add(toBN(locks[data.edgewareKey].lockAmt)).toString(),
-        effectiveValue: toBN(locks[data.edgewareKey].effectiveValue).add(value).toString(),
-        lockAddrs: [data.lockAddr, ...locks[data.edgewareKey].lockAddrs],
+    if (data.edgewareAddr in locks) {
+      locks[data.edgewareAddr] = {
+        lockAmt: toBN(data.eth).add(toBN(locks[data.edgewareAddr].lockAmt)).toString(),
+        effectiveValue: toBN(locks[data.edgewareAddr].effectiveValue).add(value).toString(),
+        lockAddrs: [data.lockAddr, ...locks[data.edgewareAddr].lockAddrs],
       };
     } else {
-      locks[data.edgewareKey] = {
+      locks[data.edgewareAddr] = {
         lockAmt: toBN(data.eth).toString(), 
         effectiveValue: value.toString(),
         lockAddrs: [data.lockAddr],
@@ -168,20 +168,20 @@ const calculateEffectiveSignals = async (web3, lockdropContract, blockNumber=nul
     let value = getEffectiveValue(balance, 'signaling');
     totalETHSignaled = totalETHSignaled.add(value);
 
-    if (data.edgewareKey in signals) {
-      signals[data.edgewareKey] = {
-        signalAmt: toBN(data.eth).add(toBN(signals[data.edgewareKey].signalAmt)).toString(),
-        delayedEffectiveValue: toBN(signals[data.edgewareKey]
+    if (data.edgewareAddr in signals) {
+      signals[data.edgewareAddr] = {
+        signalAmt: toBN(data.eth).add(toBN(signals[data.edgewareAddr].signalAmt)).toString(),
+        delayedEffectiveValue: toBN(signals[data.edgewareAddr]
                                 .delayedEffectiveValue)
                                 .add(value.mul(toBN(75)).div(toBN(100)))
                                 .toString(),
-        immediateEffectiveValue: toBN(signals[data.edgewareKey]
+        immediateEffectiveValue: toBN(signals[data.edgewareAddr]
                                   .immediateEffectiveValue)
                                   .add(value.mul(toBN(25)).div(toBN(100)))
                                   .toString(),
       };
     } else {
-      signals[data.edgewareKey] = {
+      signals[data.edgewareAddr] = {
         signalAmt: toBN(data.eth).toString(),
         delayedEffectiveValue: value.mul(toBN(75)).div(toBN(100)).toString(),
         immediateEffectiveValue: value.mul(toBN(25)).div(toBN(100)).toString(),
