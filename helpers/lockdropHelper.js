@@ -1,35 +1,13 @@
 const Promise = require('bluebird');
 const { toBN, fromWei, hexToNumber } = require('web3').utils;
 const bs58 = require('bs58');
+const schedule = require('./schedule');
 
-function getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart) {
-  const SECONDS_IN_HOUR = 3600;
-  const HOURS_IN_DAY = 24;
-  const DAYS_IN_MONTH = 31;
-  const SECONDS_IN_MONTH = SECONDS_IN_HOUR * HOURS_IN_DAY * DAYS_IN_MONTH;
-
-  // catch non-lock calls
-  if (!lockTime || !lockStart) {
-    return toBN(0);
-  }
-
-  // calculate the additive bonus for the period the lock occurred
-  if (toBN(lockTime) < toBN(lockStart).add(toBN(SECONDS_IN_MONTH))) {
-    return toBN(40);
-  } else if (lockTime < lockStart + (SECONDS_IN_MONTH * 2)) {
-    return toBN(30);
-  } else if (lockTime < lockStart + (SECONDS_IN_MONTH * 3)) {
-    return toBN(0);
-  } else {
-    return toBN(0);
-  }
-}
-
-function getEffectiveValue(ethAmount, term, lockTime, lockStart) {
+function getEffectiveValue(ethAmount, term, lockTime, lockStart, totalETH) {
   let additiveBonus;
   // get additive bonus if calculating allocation of locks
   if (lockTime && lockStart) {
-    additiveBonus = getLockPeriodAdditiveBonus(ethAmount, lockTime, lockStart);
+    additiveBonus = schedule.getAdditiveBonus(lockTime, lockStart, totalETH);
   }
 
   if (term == '0') {
@@ -40,7 +18,7 @@ function getEffectiveValue(ethAmount, term, lockTime, lockStart) {
     return toBN(ethAmount).mul(toBN(110).add(additiveBonus)).div(toBN(100));
   } else if (term == '2') {
     // twelve month term yields 40% bonus
-    return toBN(ethAmount).mul(toBN(140).add(additiveBonus)).div(toBN(100));
+    return toBN(ethAmount).mul(toBN(170).add(additiveBonus)).div(toBN(100));
   } else if (term == 'signaling') {
     // 80% deduction
     return toBN(ethAmount).mul(toBN(20)).div(toBN(100));
@@ -101,7 +79,7 @@ const calculateEffectiveLocks = async (lockdropContract) => {
 
   lockEvents.forEach((event) => {
     const data = event.returnValues;
-    let value = getEffectiveValue(data.eth, data.term, data.time, lockdropStartTime);
+    let value = getEffectiveValue(data.eth, data.term, data.time, lockdropStartTime, totalETHLocked);
     totalETHLocked = totalETHLocked.add(toBN(data.eth));
     totalEffectiveETHLocked = totalEffectiveETHLocked.add(value);
 
