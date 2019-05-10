@@ -14,6 +14,21 @@ To deploy locally against `ganache-cli`:
 ```
 truffle deploy
 ```
+Create a file named `.env` with the following information
+```
+# ETH config
+ETH_PRIVATE_KEY=0xHEXOFPRIVATEKEY
+
+# Node/provider config
+INFURA_PATH=v3/INFURA_API_KEY_IF_YOU_WANT_TO_USE_REMOTE_NODE
+
+# Lockdrop config
+LOCKDROP_CONTRACT_ADDRESS=0xLOCKDROP
+
+# Edgeware config
+EDGEWARE_PUBLIC_ADDRESS=5FnHAc3WEXdkkiFPciTvWnRNh5VBCaeGP8wdbtBtVM7iA4bL
+```
+
 To use the script `/scripts/lockdrop.js`, ensure you've deployed to the respective network:
 ```
 truffle compile
