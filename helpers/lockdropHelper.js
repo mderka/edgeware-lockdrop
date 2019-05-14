@@ -14,11 +14,11 @@ function getEffectiveValue(ethAmount, term, lockTime, lockStart, totalETH) {
     // three month term yields no bonus
     return toBN(ethAmount).mul(toBN(100).add(additiveBonus)).div(toBN(100));
   } else if (term == '1') {
-    // six month term yields 10% bonus
-    return toBN(ethAmount).mul(toBN(110).add(additiveBonus)).div(toBN(100));
+    // six month term yields 30% bonus, or 5% per month
+    return toBN(ethAmount).mul(toBN(130).add(additiveBonus)).div(toBN(100));
   } else if (term == '2') {
-    // twelve month term yields 40% bonus
-    return toBN(ethAmount).mul(toBN(170).add(additiveBonus)).div(toBN(100));
+    // twelve month term yields 120% bonus, or 10% per month
+    return toBN(ethAmount).mul(toBN(220).add(additiveBonus)).div(toBN(100));
   } else if (term == 'signaling') {
     // 80% deduction
     return toBN(ethAmount).mul(toBN(20)).div(toBN(100));

@@ -9,10 +9,11 @@ const AUG_15TH_UTC = 1565827200;
 const AUG_30TH_UTC = 1567123200;
 
 const BONUS_50 = toBN(50);
-const BONUS_40 = toBN(40);
-const BONUS_30 = toBN(30);
-const BONUS_20 = toBN(20);
-const BONUS_10 = toBN(10);
+const BONUS_35 = toBN(35);
+const BONUS_23 = toBN(23);
+const BONUS_14 = toBN(14);
+const BONUS_8 = toBN(8);
+const BONUS_5 = toBN(5);
 
 const getAdditiveBonus = (lockTime, lockStart, currentTotalETH) => {
   if (toBN(lockStart) != toBN(JUNE_1ST_UTC)) {
@@ -21,15 +22,15 @@ const getAdditiveBonus = (lockTime, lockStart, currentTotalETH) => {
     if (toBN(lockTime).lte(toBN(JUNE_16TH_UTC))) {
       return conditionalSwap(BONUS_50, currentTotalETH);
     } else if (toBN(lockTime).lte(toBN(JULY_1ST_UTC))) {
-      return conditionalSwap(BONUS_40, currentTotalETH);
+      return conditionalSwap(BONUS_35, currentTotalETH);
     } else if (toBN(lockTime).lte(toBN(JULY_16TH_UTC))) {
-      return conditionalSwap(BONUS_30, currentTotalETH);
+      return conditionalSwap(BONUS_23, currentTotalETH);
     } else if (toBN(lockTime).lte(toBN(JULY_31ST_UTC))) {
-      return conditionalSwap(BONUS_20, currentTotalETH);
+      return conditionalSwap(BONUS_14, currentTotalETH);
     } else if (toBN(lockTime).lte(toBN(AUG_15TH_UTC))) {
-      return conditionalSwap(BONUS_10, currentTotalETH);
+      return conditionalSwap(BONUS_8, currentTotalETH);
     } else if (toBN(lockTime).lte(toBN(AUG_30TH_UTC))) {
-      return toBN(0);
+      return conditionalSwap(BONUS_5, currentTotalETH);
     } else {
       return toBN(0);
     }
@@ -50,23 +51,25 @@ const conditionalSwap = (bonus, currentTotalETH) => {
       ? bonus
       : BONUS_50;
   } else if (below400K) {
-    return (bonus.lte(BONUS_40))
+    return (bonus.lte(BONUS_35))
       ? bonus
       : BONUS_40;
   } else if (below700K) {
-    return (bonus.lte(BONUS_30))
+    return (bonus.lte(BONUS_23))
       ? bonus
       : BONUS_30;
   } else if (below1100K) {
-    return (bonus.lte(BONUS_20))
+    return (bonus.lte(BONUS_14))
       ? bonus
       : BONUS_20;
   } else if (below1600K) {
-    return (bonus.lte(BONUS_10))
+    return (bonus.lte(BONUS_8))
       ? bonus
-      : BONUS_10;
+      : BONUS_8;
   } else if (below2200K) {
-    return toBN(0);
+    return (bonus.lte(BONUS_5))
+      ? bonus
+      : BONUS_8;
   } else {
     return toBN(0);
   }
