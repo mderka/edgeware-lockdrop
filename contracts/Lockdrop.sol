@@ -62,7 +62,7 @@ contract Lockdrop {
         // Create ETH lock contract
         Lock lockAddr = (new Lock).value(eth)(owner, unlockTime);
         // ensure lock contract has all ETH, or fail
-        assert(address(lockAddr).balance == msg.value);
+        assert(address(lockAddr).balance >= msg.value);
         emit Locked(owner, eth, lockAddr, term, edgewareAddr, isValidator, now);
     }
 
